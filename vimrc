@@ -1,5 +1,5 @@
 "   author: sam tenka
-"   change: 2022-09-30
+"   change: 2023-04-21
 "   create: 2018-09-01
 "   descrp: Define vim settings for super bovine text editing productivity
 "           This document has six parts: PLUGINS --- FILE MANAGEMENT ---
@@ -21,6 +21,8 @@
 "
 "        I  C-[xnp]         snippet : `x`(expand), `n`(next), `p`(prev)
 "       N   #               search for current selection or word
+"       N   \(CC|Cc|cc)     insert /*..*/-style banner comment
+"       N   \p(CC|Cc|cc)    insert #-style banner comment
 "       N   :cs(dk|lt)      brightness : `dk`(dark), `lt`(light)
 "       N   :cs(pc|cl)      color scheme : `pc`(papercolor), `cl`(cosmiclatte)
 "       N   <space>         toggle fold view shallow
@@ -35,7 +37,6 @@
 "       N   f(f|d|[|])      fold : `f`(make), `d`(free), `[`(opendeep), `]`(closedeep)
 "      V    \ga             align table to character (e.g. \ga= aligns to =)
 "      V    \gt             titlecase the selection
-
 
 "==============================================================================
 "=  PLUGINS  ==================================================================
@@ -67,6 +68,17 @@ Plugin 'yggdroot/indentline'
 
 call vundle#end()
 filetype plugin indent on
+
+
+"-------  multiline search  ---------------------------------------------------
+"thanks to unix.stackexchange.com/questions/7617
+function! SearchMultiLine(bang, ...)
+  if a:0 > 0
+    let sep = (a:bang) ? '\_W\+' : '\_s\+'
+    let @/ = join(a:000, sep)
+  endif
+endfunction
+command! -bang -nargs=* -complete=tag S call SearchMultiLine(<bang>0, <f-args>)|normal! /<C-R>/<CR>
 
 "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 "~~~~~  Customize Plugins  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,9 +122,11 @@ let g:indentLine_color_term = 233
 let g:indentLine_color_tty_light = 208
 let g:indentLine_color_tty_dark  = 237
 " don't mess up latex:
-let g:indentLine_fileTypeExclude = ['tex']
+let g:indentLine_fileTypeExclude = ['tex', 'markdown', 'md']
 au Filetype tex setlocal conceallevel=0
-
+au Filetype markdown setlocal conceallevel=0
+au Filetype md setlocal conceallevel=0
+"autocmd Filetype markdown let g=0
 
 "==============================================================================
 "=  FILE MANAGEMENT  ==========================================================
@@ -153,12 +167,13 @@ syntax on
 """ highlight SchwaComment  ctermfg=yellow
 
 " associate filename patterns with syntax files `.vim/syntax/foo.vim`
-au BufRead,BufNewFile *.stc     set filetype=cel
-au BufRead,BufNewFile notes.*   set filetype=notes
-au BufRead,BufNewFile *.grammar set filetype=grammar
-au BufRead,BufNewFile *.lexspec set filetype=grammar
-au BufRead,BufNewFile *.c       set filetype=cpp
-au BufRead,BufNewFile *.bcc     set filetype=cpp
+au BufRead,BufNewFile *.stc       set filetype=cel
+au BufRead,BufNewFile notes.*     set filetype=notes
+au BufRead,BufNewFile *.mookdown  set filetype=mookdown
+au BufRead,BufNewFile *.grammar   set filetype=grammar
+au BufRead,BufNewFile *.lexspec   set filetype=grammar
+au BufRead,BufNewFile *.c         set filetype=cpp
+au BufRead,BufNewFile *.bcc       set filetype=cpp
 
 "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 "~~~~~  Colorscheme  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -176,7 +191,7 @@ nmap :csdk :set background=dark <cr>:call HiAttnWordsDark()<cr>
 nmap :cslt :set background=light<cr>:call HiAttnWordsLight()<cr>
 
 let MORNING=6
-let EVENING=18
+let EVENING=20
 
 if MORNING <= strftime('%H') && strftime('%H') < EVENING
     set background=light
@@ -189,18 +204,30 @@ endif
 
 " glaring words (THX b80lpi)
 augroup todo autocmd!
-    autocmd Syntax * call matchadd('Todo', '\v\W\zs<(TODO|FILLIN|FIXME|ADD)>')
+    autocmd Syntax * call matchadd('Todo', '\v\W\zs<(TODO|FILLIN|FIXME|ADD|SECTION)>')
 augroup END
 
 " non-glaring words
 augroup note autocmd!
     autocmd Syntax * call matchadd('Note', '\v\W\zs<(NOTE|ATTN|PRE|POST|THX)>')
+    autocmd Syntax * call matchadd('Note', '\v\W\zs<(for #[A-Z]+)>')
 augroup END
 
-" back-tick literals with no whitespace or escapes in them
+" backtick literals "with no whitespace or escapes in them
+" NOTE: ACTUALLY we allow whitespace
 augroup btstring autocmd!
-    autocmd Syntax * call matchadd('BtString', '\(`\)\@<=[^` ]\+\(`\)\@=')
+    "autocmd Syntax * call matchadd('BtString', '\(`\)\@<=[^` ]\+\(`\)\@=')
+    "autocmd Syntax * call matchadd('BtString', '\(`\)\@<=[^`]\+\(`\)\@=')
+    autocmd Syntax * call matchadd('BtString', '\(^[^`]*\(`[^`]*`[^`]*\)*`\)\@<=[^`]\+\(`\)\@=')
 augroup END
+
+" exclam-caps
+augroup exclamcapsstring autocmd!
+    autocmd Syntax * call matchadd('ExclamCapsString', '![-a-z_A-Z][-a-z_A-Z]\+')
+    autocmd Syntax * call matchadd('ExclamCapsString', ' _[-a-z_A-Z][-a-z_A-Z]\+_')
+augroup END
+
+
 
 function HiAttnWords()
     if &background ==# 'dark'
@@ -212,6 +239,7 @@ endfunction
 
 function HiAttnWordsLight()
     highlight BtString  ctermfg=8   cterm=underline
+    highlight ExclamCapsString ctermfg=28  cterm=italic
     highlight Comment   ctermfg=31
     highlight Note      ctermfg=31  cterm=bold
     highlight Todo      ctermfg=172 cterm=bold
@@ -222,13 +250,14 @@ endfunction
 
 function HiAttnWordsDark()
     highlight BtString  ctermfg=8   cterm=underline
+    highlight ExclamCapsString ctermfg=28  cterm=italic
     highlight Comment   ctermfg=31
     highlight Note      ctermfg=31  cterm=bold
     highlight Todo      ctermfg=172 cterm=bold
     "
     autocmd ColorScheme * highlight ExtraWhitespace ctermbg=16
     let g:indentLine_color_term=237
-    " TODO: call indent plugin's script-local InitColor to reset: 
+    " TODO: call indent plugin's script-local InitColor to reset:
     " https://vi.stackexchange.com/questions/17866/are-script-local-functions-sfuncname-unit-testable
     "let MyFuncref = function("<SNR>" . 42 . "_InitColor")
     "call(MyFuncref, [])
@@ -338,13 +367,50 @@ ab atumich      samtenka@umich.edu
 "nmap ST__tildes__ ST_tildes_ST_tildes_i<backspace><backspace><backspace><esc>
 "nmap ST__dashes__ ST_dashes_ST_dashes_i<backspace><backspace><backspace><esc>
 
-" length-79 comment banners:
-nmap <leader>CC o/*===========================================================================*/<cr>
-\/*==  _  ====================================================================*/<cr>
-\/*===========================================================================*/<cr><esc>
-nmap <leader>Cc o/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/<cr>
-\/*~~  _  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/<cr><esc>
-nmap <leader>cc o/*--  _  --------------------------------------------------------------------*/<esc>
+" headers:
+nmap <leader>HH O/* author: samtenka<cr>
+\change:  <cr>
+\create:  <cr>
+\descrp:  <cr>
+\to use:  <cr>
+\/<cr><esc>
+
+nmap <leader>PHH O# author: samtenka<cr>
+\# change: <cr>
+\# create: <cr>
+\# descrp: <cr>
+\# to use: <cr><esc>
+
+
+
+" length-79 comment banners (C):
+nmap <leader>CC O/* ========================================================================= */<cr>
+\/* =  _  =================================================================== */<cr>
+\/* ========================================================================= */<cr><esc>?_<cr>R
+nmap <leader>Cc O/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */<cr>
+\/* ~  _  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */<cr><esc>?_<cr>R
+nmap <leader>cc O/* -----  _  --------------------------------------------------------------- */<esc>?_<cr>R
+
+" length-79 comment banners (LaTeX, Bash)
+nmap <leader>tCC O% =============================================================================<cr>
+\% ==  _  ======================================================================<cr>
+\% =============================================================================<cr><esc>?_<cr>R
+nmap <leader>tCc O% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<cr>
+\% ~~  _  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<cr><esc>?_<cr>R
+nmap <leader>tcc O%-------  _  ------------------------------------------------------------------<esc>?_<cr>R
+
+
+
+" length-79 comment banners (Python):
+nmap <leader>pCC O#==============================================================================<cr>
+\#===  _  ======================================================================<cr>
+\#==============================================================================<cr><esc>?_<cr>R
+nmap <leader>pCc O#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<cr>
+\#~~~  _  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<cr><esc>?_<cr>R
+nmap <leader>pcc O#-------  _  ------------------------------------------------------------------<esc>?_<cr>R
+
+
+
 
 
 nmap <leader>signature o<cr><cr><esc>0i
@@ -669,4 +735,11 @@ nmap <leader>signature o<cr><cr><esc>0i
 "~~~~~  Inter-text Navigation: Tabs, Windows, File Tree  ~~~~~~~~~~~~~~~~~~~~~~
 
 
+"au FileType tex hi clear texStyleItal
+"au FileType tex hi clear texStyleBold
+
+au FileType tex set indentkeys-={
+au FileType tex set indentkeys-=}
+au FileType tex set indentkeys-=0{
+au FileType tex set indentkeys-=0}
 
