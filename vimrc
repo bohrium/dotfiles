@@ -53,7 +53,6 @@ filetype off
 set rtp+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
 Plugin 'VundleVim/Vundle.vim'
-
 " to add plugins, ADD to this list:
 Plugin 'SirVer/ultisnips'
 Plugin 'bronson/vim-trailing-whitespace'
@@ -62,10 +61,9 @@ Plugin 'honza/vim-snippets'
 Plugin 'junegunn/vim-easy-align'
 Plugin 'tpope/vim-fugitive'
 Plugin 'tpope/vim-surround'
-Plugin 'valloric/youcompleteme'
+Plugin 'valloric/YouCompleteMe'
 Plugin 'w0rp/ale'
 Plugin 'yggdroot/indentline'
-
 call vundle#end()
 filetype plugin indent on
 
@@ -117,11 +115,11 @@ nmap <leader>lx :ALEDisable<CR>
 nmap <leader>ln :ALENext<CR>
 nmap <leader>lp :ALEPrevious<CR>
 
-" mark indentation (yggdroot/indentline)
-let g:indentLine_color_term = 233
-let g:indentLine_color_tty_light = 208
-let g:indentLine_color_tty_dark  = 237
-" don't mess up latex:
+"       " mark indentation (yggdroot/indentline)
+"       let g:indentLine_color_term = 233
+"       let g:indentLine_color_tty_light = 208
+"       let g:indentLine_color_tty_dark  = 237
+"       " don't mess up latex:
 let g:indentLine_fileTypeExclude = ['tex', 'markdown', 'md']
 au Filetype tex setlocal conceallevel=0
 au Filetype markdown setlocal conceallevel=0
@@ -169,6 +167,7 @@ syntax on
 " associate filename patterns with syntax files `.vim/syntax/foo.vim`
 au BufRead,BufNewFile *.stc       set filetype=cel
 au BufRead,BufNewFile notes.*     set filetype=notes
+au BufRead,BufNewFile *.hoof      set filetype=hoof
 au BufRead,BufNewFile *.mookdown  set filetype=mookdown
 au BufRead,BufNewFile *.grammar   set filetype=grammar
 au BufRead,BufNewFile *.lexspec   set filetype=grammar
@@ -202,6 +201,32 @@ endif
 "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 "~~~~~  Highlight Reader-Attention Words  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+" C special
+augroup cspecial autocmd!
+    " note : (---  ^[^"]*("[^"]*"[^"]*)*  ---) matches even number of "s from
+    " start of line, ensuring we are not inside string (except for escapes,
+    " which we are too lazy to reason about) ... We also are too lazy to
+    " handle when something immediately follows a string literal with no space
+    " in between.
+    "
+    " c type, e.g. IAmACow or int32_t
+    autocmd Syntax cpp call matchadd('Type',      '\v(^|^[^"]*("[^"]*"[^"]*)*(^|[^"_A-Za-z0-9]|([^"]*"[^"]*")+))@<=[A-Z]+[a-zA-Z]*[A-Z][a-z]+($|[^_A-Za-z0-9])@=')
+    autocmd Syntax cpp call matchadd('Type',      '\v(^|^[^"]*("[^"]*"[^"]*)*(^|[^"_A-Za-z0-9]|([^"]*"[^"]*")+))@<=[a-z]+[_a-z0-9]*_t($|[^_A-Za-z0-9])@=')
+    "
+    autocmd Syntax cpp call matchadd('CommType',  '\v(^[^"]*("[^"]*"[^"]*)*//.*(|[^_A-Za-z0-9]))@<=[A-Z]+[a-zA-Z]*[A-Z][a-z]+($|[^_A-Za-z0-9])@=')
+    autocmd Syntax cpp call matchadd('CommType',  '\v(^[^"]*("[^"]*"[^"]*)*//.*(|[^_A-Za-z0-9]))@<=[a-z]+[_a-z0-9]*_t($|[^_A-Za-z0-9])@=')
+    "
+    " c macro, e.g. _CPUT or __MATCH
+    autocmd Syntax cpp call matchadd('CSamMacro', '\v(^|^[^"]*("[^"]*"[^"]*)*(^|[^"_A-Za-z0-9]|([^"]*"[^"]*")+))@<=[A-Z]+[_A-Z]+[A-Z]+($|[^_A-Za-z0-9])@=')
+    autocmd Syntax cpp call matchadd('CSamMacro', '\v(^|^[^"]*("[^"]*"[^"]*)*(^|[^"_A-Za-z0-9]|([^"]*"[^"]*")+))@<=__[A-Z]+[_A-Z]+[A-Z]+($|[^_A-Za-z0-9])@=')
+    " c macro flank underscored, e.g. _W_
+    autocmd Syntax cpp call matchadd('CMacScore', '\v(^|^[^"]*("[^"]*"[^"]*)*(^|[^"_A-Za-z0-9]|([^"]*"[^"]*")+))@<=_[A-Z]*[_A-Z]+[A-Z]*_($|[^_A-Za-z0-9])@=')
+    "
+    autocmd Syntax cpp call matchadd('CommMacro', '\v(^[^"]*("[^"]*"[^"]*)*//.*(|[^_A-Za-z0-9]))@<=[A-Z]+[_A-Z]+[A-Z]+($|[^_A-Za-z0-9])@=')
+    autocmd Syntax cpp call matchadd('CommMacro', '\v(^[^"]*("[^"]*"[^"]*)*//.*(|[^_A-Za-z0-9]))@<=__[A-Z]+[_A-Z]+[A-Z]+($|[^_A-Za-z0-9])@=')
+    autocmd Syntax cpp call matchadd('CommMacro', '\v(^[^"]*("[^"]*"[^"]*)*//.*(|[^_A-Za-z0-9]))@<=_[A-Z]*[_A-Z]+[A-Z]*_($|[^_A-Za-z0-9])@=')
+augroup END
+
 " glaring words (THX b80lpi)
 augroup todo autocmd!
     autocmd Syntax * call matchadd('Todo', '\v\W\zs<(TODO|FILLIN|FIXME|ADD|SECTION)>')
@@ -218,7 +243,7 @@ augroup END
 augroup btstring autocmd!
     "autocmd Syntax * call matchadd('BtString', '\(`\)\@<=[^` ]\+\(`\)\@=')
     "autocmd Syntax * call matchadd('BtString', '\(`\)\@<=[^`]\+\(`\)\@=')
-    autocmd Syntax * call matchadd('BtString', '\(^[^`]*\(`[^`]*`[^`]*\)*`\)\@<=[^`]\+\(`\)\@=')
+    autocmd Syntax (*.hoof)@<! call matchadd('BtString', '\(^[^`]*\(`[^`]*`[^`]*\)*`\)\@<=[^`]\+\(`\)\@=')
 augroup END
 
 " exclam-caps
@@ -238,6 +263,11 @@ function HiAttnWords()
 endfunction
 
 function HiAttnWordsLight()
+    highlight CommType               ctermfg=darkblue cterm=bold
+    highlight CommMacro              ctermfg=darkblue cterm=bold
+    highlight CSamMacro              ctermfg=102 cterm=bold
+    highlight CMacScore            ctermfg=145
+    "
     highlight BtString  ctermfg=8   cterm=underline
     highlight ExclamCapsString ctermfg=28  cterm=italic
     highlight Comment   ctermfg=31
@@ -245,10 +275,15 @@ function HiAttnWordsLight()
     highlight Todo      ctermfg=172 cterm=bold
     "
     autocmd ColorScheme * highlight ExtraWhitespace ctermbg=208
-    let g:indentLine_color_term=208
+    "       let g:indentLine_color_term=208
 endfunction
 
 function HiAttnWordsDark()
+    highlight CommType               ctermfg=darkblue cterm=bold
+    highlight CommMacro              ctermfg=darkblue cterm=bold
+    highlight CSamMacro              ctermfg=102 cterm=bold
+    highlight CMacScore            ctermfg=145
+    "
     highlight BtString  ctermfg=8   cterm=underline
     highlight ExclamCapsString ctermfg=28  cterm=italic
     highlight Comment   ctermfg=31
@@ -256,7 +291,7 @@ function HiAttnWordsDark()
     highlight Todo      ctermfg=172 cterm=bold
     "
     autocmd ColorScheme * highlight ExtraWhitespace ctermbg=16
-    let g:indentLine_color_term=237
+    "       let g:indentLine_color_term=237
     " TODO: call indent plugin's script-local InitColor to reset:
     " https://vi.stackexchange.com/questions/17866/are-script-local-functions-sfuncname-unit-testable
     "let MyFuncref = function("<SNR>" . 42 . "_InitColor")
@@ -367,19 +402,140 @@ ab atumich      samtenka@umich.edu
 "nmap ST__tildes__ ST_tildes_ST_tildes_i<backspace><backspace><backspace><esc>
 "nmap ST__dashes__ ST_dashes_ST_dashes_i<backspace><backspace><backspace><esc>
 
-" headers:
-nmap <leader>HH O/* author: samtenka<cr>
-\change:  <cr>
-\create:  <cr>
-\descrp:  <cr>
-\to use:  <cr>
-\/<cr><esc>
+" new structure
+"
+nmap <leader>cst wbde
+                \itypedef struct <esc>pA {<cr>
+                \TODO;<cr>
+                \} <esc>pA;<esc>?TODO<cr>R
 
-nmap <leader>PHH O# author: samtenka<cr>
-\# change: <cr>
-\# create: <cr>
-\# descrp: <cr>
-\# to use: <cr><esc>
+" new switch statement
+"
+nmap <leader>csw wbde
+                \iswitch ( <esc>pA ) {<cr>
+                \break; case TODO:<cr>
+                \break; default:<cr>
+                \}<esc>?TODO<cr>R
+
+
+" init C file
+"
+"
+nmap <leader>ccc <esc><leader>chh
+                \<esc><leader>cmm
+                \<esc><leader>cFF
+                \<esc><leader>caa
+"
+nmap <leader>hhh <esc><leader>chh
+                \j:r! echo %:t<cr>
+                \0V$U
+                \/\.<cr>D
+                \<esc>h<leader>hGG
+                \<esc>j<leader>cFF
+                \ddkki//TODO
+                \<esc><leader>caa
+
+" add function declaration
+"
+nmap <leader>cFF mz{i<cr>FUNCTION DECLARATIONS<cr><cr><esc>kk0i// <esc>`z
+nmap <leader>cff mz[[k0v$y?FUNCTION DECLARATIONS<cr>}pA;<esc>`z
+
+" prepend an "about" comment
+"
+nmap <leader>caa ggO
+                \/* author: samtenka<cr>
+                \change: <esc>:pu=strftime('%Y-%m-%d')<cr>i<bs><esc>$A<cr>
+                \create: <esc>:pu=strftime('%Y-%m-%d')<cr>i<bs><esc>$A<cr>
+                \descrp: TODO<cr>
+                \to use: TODO<cr>
+                \/<cr><cr><esc>?descrp:<cr>/TODO<cr>R
+nmap <leader>cdd mzgg$/change<cr>wwD:pu=strftime('%Y-%m-%d')<cr>i<bs><esc>`z
+
+" insert main
+"
+nmap <leader>cmm o
+                \int main(int argc, char const* const argv)<cr>
+                \{<cr>
+                \TODO;<cr>
+                \return 0;<cr>
+                \}
+                \<esc>
+                \?TODO<cr>R
+
+nmap <leader>chh ggO
+                \#include <assert.h><cr>
+                \#include <stdbool.h><cr>
+                \#include <string.h><cr>
+                \#include <stdio.h><cr>
+                \#include <stdlib.h><cr>
+                \#include <inttypes.h><cr>
+                \#include <time.h><cr>
+                \<cr><esc>
+
+"   Type \hgg or \hGG in visual mode.  \hgg is light-weight and usually works;
+"   \hGG goes through hoops to get around auto-adding of comment symbols when
+"   opening new lines from a line with a comment.
+"
+"   The cursor should be on or after guard name:
+"
+"                0---------------$
+"                    MOO   Mitten
+"           good:    ^^^^^^
+"           bad:  ^^^      ^^^^^^
+"
+"   yields
+"           #ifndef MOO_H
+"           #define MOO_H
+"
+"           <2 blank lines, then code, then 2 blank lines>
+"
+"           #endif//MOO_H
+"
+"   and destructively sets mark `z`
+"
+" Implementation:
+"
+"   The mapping's 10 lines do:
+"
+"         0 "set mark"                   mz
+"         1 "append _H to guard name"    wbei <esc>dlpi_H<esc>ldl
+"         2 "cut guard name"             bde
+"         3 "insert #ifndef"             ggO<esc>0i#ifndef <esc>p
+"         4 "insert #define"             o<esc>0i#define <esc>po<esc>0i<cr><esc>
+"         5 "insert #endif"              Go<esc>0i<cr><cr>#endif//<esc>p
+"         6 "remove cruff after #ifndef" ggeei <esc>dlpv$hd
+"         7 "remove cruff after #define" j0eei <esc>dlpv$hd
+"         8 "remove cruff after #endif"  G0eeei <esc>dlpv$hd
+"         9 "goto mark"                  `z
+"
+"   Most of the time there is no cruff to remove, but if before our command
+"   there happened to be comments at the very beginning or end of file then
+"   our line openers `O`, `o` could auto-continue that comment; it's for this
+"   reason that we use `<esc>0i` in our 3 "insert" lines (twice in one of
+"   them) and that we have those 3 "remove" lines.
+"
+"   Also, the fragment `i <esc>dlp` occurs in our "append" lie and our "remove"
+"   lines.  This fragment inserts a space after our cursor (and moves our
+"   cursor to that space), even if our cursor was previously right-most in the
+"   line.  That extra space is then deleted by `ldl` or as part of `v$hd`.
+"
+nmap <leader>hGG mz
+                \wbei <esc>dlpi_H<esc>ldl
+                \bde
+                \ggO<esc>0i#ifndef <esc>p
+                \o<esc>0i#define <esc>po<esc>0i<cr><esc>
+                \Go<esc>0i<cr><cr>#endif//<esc>p
+                \ggeei <esc>dlpv$hd
+                \j0eei <esc>dlpv$hd
+                \G0eeei <esc>dlpv$hd
+                \`z
+nmap <leader>hgg mz
+                \wbei <esc>dlpi_H<esc>ldl
+                \bde
+                \ggO#ifndef <esc>p
+                \o#define <esc>po<cr><esc>
+                \Go<cr><cr>#endif//<esc>p
+                \`z
 
 
 
@@ -398,6 +554,15 @@ nmap <leader>tCC O% ============================================================
 nmap <leader>tCc O% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<cr>
 \% ~~  _  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<cr><esc>?_<cr>R
 nmap <leader>tcc O%-------  _  ------------------------------------------------------------------<esc>?_<cr>R
+
+" length-79 comment banners (Haskell, Hoof)
+nmap <leader>hCC O--=============================================================================<cr>
+\--==  _  ======================================================================<cr>
+\--=============================================================================<cr><esc>?_<cr>R
+nmap <leader>hCc O--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<cr>
+\--~~  _  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<cr><esc>?_<cr>R
+nmap <leader>hcc O--------  _  ------------------------------------------------------------------<esc>?_<cr>R
+
 
 
 
@@ -742,4 +907,7 @@ au FileType tex set indentkeys-={
 au FileType tex set indentkeys-=}
 au FileType tex set indentkeys-=0{
 au FileType tex set indentkeys-=0}
+
+"let g:ycm_server_keep_logfiles = 1
+"let g:ycm_server_log_level = 'debug'
 
